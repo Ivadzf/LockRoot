@@ -1,4 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">LockRoot</string>
+    <string name="app_subtitle">v%1$s · esqueleto</string>
+
+    <!-- Tela principal -->
+    <string name="status_ready">Pronto · %1$s</string>
+    <string name="status_no_manager">Sem gerenciador de root</string>
+    <string name="status_no_profile">Sem perfil para este kernel</string>
+    <string name="status_rooted">Root ativo · %1$s</string>
+    <string name="status_hooked_no_root">Hook carregado, sem su</string>
+    <string name="manager_card_title">Gerenciador de root</string>
+    <string name="manager_download">Baixar</string>
+    <string name="manager_open">Abrir</string>
+    <string name="manager_installed">INSTALADO</string>
+    <string name="manager_not_installed">NÃO INSTALADO</string>
+    <string name="vulnerability_title">Vulnerabilidade</string>
+    <string name="vulnerability_route">DirtyFrag (CVE-2026-43284)</string>
+    <string name="vulnerability_text">Após uma execução bem-sucedida, faça soft reboot em vez de reboot total: o módulo carrega e o manager sobe. Um reboot total descarrega tudo e o root some.</string>
+    <string name="vulnerability_fallback">Se o DirtyFrag falhar, o app tenta GhostLock (CVE-2026-43499) e depois Timer (CVE-2026-98260).</string>
+    <string name="get_root">Obter root</string>
+    <string name="check_compat">Verificar compatibilidade</string>
+    <string name="soft_reboot_now">Soft reboot agora</string>
+    <string name="console_log">Log do console</string>
+    <string name="copy_log">Copiar log</string>
+    <string name="share_log">Compartilhar log</string>
+    <string name="log_empty">(log vazio)</string>
+    <string name="selinux_warning">Atenção: SELinux permissivo até o reboot.</string>
+
+    <!-- Configurações -->
+    <string name="settings_title">Configurações</string>
+    <string name="settings_expert">Modo Expert</string>
+    <string name="settings_expert_sub">Libera as opções avançadas (Autorun no boot)</string>
+    <string name="settings_launch_manager">Abrir o manager após o sucesso</string>
+    <string name="settings_launch_manager_sub">Abre o manager selecionado quando o root subir</string>
+    <string name="settings_autorun">Iniciar no boot</string>
+    <string name="settings_autorun_sub">Roda o root temporário quando o aparelho liga (Expert)</string>
+    <string name="settings_soft_reboot">Soft reboot após o root</string>
+    <string name="settings_soft_reboot_sub">Libera o botão manual — nunca automático</string>
+    <string name="settings_modules_off">Desativar módulos KSU</string>
+    <string name="settings_modules_off_sub">Sobe com todos os módulos desligados; reative um a um no manager</string>
+    <string name="settings_import_profile">Importar perfil GhostLock</string>
+    <string name="settings_import_profile_sub">Usar um .conf gerado para este kernel exato</string>
+    <string name="settings_about">Sobre</string>
+    <string name="settings_about_sub">Versão, licença e créditos</string>
+    <string name="about_text">LockRoot %1$s\nLicença Apache-2.0\nRoot temporário: some no reboot, nada é gravado no sistema.</string>
+
+    <!-- Diálogos e avisos -->
+    <string name="compat_dialog_title">Compatibilidade do aparelho</string>
+    <string name="confirm_soft_reboot_title">Soft reboot agora?</string>
+    <string name="confirm_soft_reboot_msg">Reinicia só os serviços do Android; o root continua. Um reboot total remove o root.</string>
+    <string name="confirm_yes">Sim, fazer soft reboot</string>
+    <string name="confirm_cancel">Cancelar</string>
+    <string name="toast_manager_not_installed">Manager não instalado</string>
+    <string name="toast_no_browser">Nenhum navegador disponível</string>
+    <string name="toast_profile_todo">Importação de perfil ainda não implementada nesta versão</string>
+    <string name="toast_log_copied">Log copiado</string>
+    <string name="toast_log_empty_share">Nada para exportar (log vazio)</string>
+    <string name="toast_share_saved">Log salvo em Downloads/LockRoot</string>
 </resources>

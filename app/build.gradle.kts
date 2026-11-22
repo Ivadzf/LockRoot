@@ -40,6 +40,9 @@ android {
 
     buildFeatures {
         viewBinding = true
+        // BuildConfig.VERSION_NAME is used by MainActivity, SettingsActivity
+        // and ExploitRunner; AGP 8+ does not generate BuildConfig by default.
+        buildConfig = true
     }
 }
 

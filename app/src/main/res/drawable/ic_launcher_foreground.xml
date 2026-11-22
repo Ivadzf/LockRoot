@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LockRoot icon foreground: white padlock on transparent (108x108 viewport). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- shackle -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="7"
+        android:pathData="M41,56 V46 a13,13 0 0,1 26,0 V56" />
+    <!-- body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,56 h44 a6,6 0 0,1 6,6 v22 a6,6 0 0,1 -6,6 H32 a6,6 0 0,1 -6,-6 V62 a6,6 0 0,1 6,-6 z" />
+    <!-- keyhole -->
+    <path
+        android:fillColor="@color/ic_launcher_background"
+        android:pathData="M54,66 m-4.5,0 a4.5,4.5 0 1,1 9,0 a4.5,4.5 0 1,1 -9,0" />
+    <path
+        android:fillColor="@color/ic_launcher_background"
+        android:pathData="M51,70 L57,70 L59,82 L49,82 z" />
+</vector>

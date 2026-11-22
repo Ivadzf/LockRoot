@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  LockRoot manifest — minimal permissions, each justified below.
+  See plano-v1.md and study-parts/a-dirtyfrag.md §6.1 for the reference design.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- RECEIVE_BOOT_COMPLETED: needed so BootReceiver can re-root after a
+         reboot (temporary root disappears on reboot). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- WAKE_LOCK: the boot run holds a partial wake lock while the exploit
+         chain runs, so the device does not sleep mid-run. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- INTERNET: only to download a GhostLock profile for the exact kernel
+         from upstream (never to fetch an exploit binary blindly) and to
+         check for app updates. No exploit code is downloaded. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- QUERY_ALL_PACKAGES: needed to detect which root manager is installed
+         (KernelSU / KernelSU-Next / SukiSU / ReSukiSU / OriginSU / BakaSU /
+         SUSFS) by looking for its libksud.so. No su/magisk/busybox is
+         embedded in this app. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.LockRoot">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Autorun: declared disabled; the user enables it from the app
+             (Expert Mode gate). directBootAware so it can run before the
+             user unlocks, reading device-protected storage only. -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="false"
+            android:exported="false"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>

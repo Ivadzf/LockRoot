@@ -27,13 +27,16 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
+      # NÃO usar android-actions/setup-android: a v3 tenta instalar o
+      # pacote obsoleto 'tools' e falha (run #1: sdkmanager exit code 1).
+      # O runner ubuntu-latest já traz o Android SDK pré-instalado; basta
+      # instalar a plataforma 36 com o sdkmanager que já está lá.
       - name: Install Android 36 platform and build-tools
         run: |
-          yes | sdkmanager --licenses
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="sdkmanager"; fi
+          yes | "$SDKMANAGER" --licenses
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Set up Gradle 8.13
         uses: gradle/actions/setup-gradle@v3

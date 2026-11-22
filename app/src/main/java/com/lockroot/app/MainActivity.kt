@@ -16,24 +16,28 @@
 
 package com.lockroot.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import android.view.Gravity
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.Switch
-import android.widget.TextView
+import android.text.method.ScrollingMovementMethod
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.lockroot.app.autorun.AutorunManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.lockroot.app.databinding.ActivityMainBinding
+import com.lockroot.app.databinding.ItemManagerBinding
 import com.lockroot.app.detection.Detection
 import com.lockroot.app.exploit.ExploitResult
 import com.lockroot.app.exploit.ExploitRunner
 import com.lockroot.app.exploit.RootManager
 import com.lockroot.app.exploit.RootState
 import com.lockroot.app.logging.LogManager
+import com.lockroot.app.managers.KnownManager
+import com.lockroot.app.managers.KnownManagers
 import com.lockroot.app.settings.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -41,251 +45,345 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Placeholder UI (Views, no Compose) for the LockRoot v1 skeleton.
+ * Tela principal do LockRoot (layout v0.2.0, no modelo do Temporary Root).
  *
- * Everything on this screen is wired to the stubs: tapping "Obter
- * root" runs [ExploitRunner], which today only logs TODOs and returns
- * a refusal — no root is obtained. The screen exists so the wiring
- * (detection -> run -> verify -> log) can be tested end to end once
- * the routes are implemented.
+ * Tudo continua ligado aos stubs do esqueleto: tocar "Obter root" roda
+ * [ExploitRunner], que hoje só registra TODOs e recusa — nenhum root é
+ * obtido. O que mudou neste lote é só a apresentação e a organização:
+ * pílula de status, card de manager com dropdown, card de
+ * vulnerabilidade, card de log do console e uma tela de Configurações
+ * separada ([SettingsActivity]).
  *
- * Controls:
- * - Detection status text (from [Detection.detect]).
- * - "Obter root" button.
- * - "Iniciar com módulos desligados" switch (default off).
- * - "Soft reboot após o root" switch (default off; never automatic).
- * - "Soft reboot agora" button — disabled until root is verified.
- * - "Autorun (Expert)" switch — disabled unless Expert Mode is on.
- * - "Ver log" (shows the log text) and "Compartilhar log" (exports
- *   to Downloads/LockRoot and opens the share sheet).
+ * Otimização: o log da tela mostra só o fim do arquivo ([LOG_TAIL_CHARS])
+ * e é carregado quando a tela abre e quando o card é expandido — nunca
+ * um TextView com o arquivo inteiro de uma vez.
  */
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivityMainBinding
     private lateinit var log: LogManager
     private lateinit var settings: Settings
 
-    private lateinit var statusText: TextView
-    private lateinit var rootButton: Button
-    private lateinit var modulesOffSwitch: Switch
-    private lateinit var softRebootSwitch: Switch
-    private lateinit var softRebootNowButton: Button
-    private lateinit var expertSwitch: Switch
-    private lateinit var autorunSwitch: Switch
-    private lateinit var autoSoftRebootSwitch: Switch
-    private lateinit var viewLogButton: Button
-    private lateinit var shareLogButton: Button
-    private lateinit var logText: TextView
-
+    private var deviceInfo: Detection.DeviceInfo? = null
+    private var selectedManager: KnownManager = KnownManagers.ALL[0]
     private var rooted: Boolean = false
+    private var managerListExpanded = false
+    private var vulnerabilityExpanded = true
+    private var logExpanded = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         log = LogManager(applicationContext)
         settings = Settings(applicationContext)
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 48, 48, 48)
-        }
-        val scroll = ScrollView(this).apply { addView(root) }
-
-        statusText = TextView(this).apply {
-            text = "LockRoot 0.1.0 — esqueleto\nNenhum exploit implementado."
-            textSize = 16f
-        }
-        rootButton = Button(this).apply { text = "Obter root" }
-        modulesOffSwitch = Switch(this).apply {
-            text = "Iniciar com todos os módulos desligados"
-        }
-        softRebootSwitch = Switch(this).apply {
-            text = "Soft reboot após o root (nunca automático sem isto)"
-        }
-        softRebootNowButton = Button(this).apply {
-            text = "Soft reboot agora"
-            isEnabled = false
-        }
-        expertSwitch = Switch(this).apply { text = "Modo Expert" }
-        autorunSwitch = Switch(this).apply {
-            text = "Autorun no boot (Expert)"
-            isEnabled = false
-        }
-        autoSoftRebootSwitch = Switch(this).apply {
-            text = "Soft reboot no boot (Expert + Autorun)"
-            isEnabled = false
-        }
-        viewLogButton = Button(this).apply { text = "Ver log" }
-        shareLogButton = Button(this).apply { text = "Compartilhar log" }
-        logText = TextView(this).apply {
-            text = ""
-            textSize = 13f
-        }
-
-        for (view in listOf(
-            statusText, rootButton, modulesOffSwitch, softRebootSwitch,
-            softRebootNowButton, expertSwitch, autorunSwitch,
-            autoSoftRebootSwitch, viewLogButton, shareLogButton, logText
-        )) {
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = 24
-                gravity = Gravity.CENTER_HORIZONTAL
-            }
-            root.addView(view, params)
-        }
-
-        setContentView(scroll)
+        binding.subtitleText.text =
+            getString(R.string.app_subtitle, BuildConfig.VERSION_NAME)
+        binding.logText.movementMethod = ScrollingMovementMethod()
 
         wireControls()
         refreshDetection()
+        loadLogTail()
     }
 
     private fun wireControls() {
-        rootButton.setOnClickListener {
-            lifecycleScope.launch(Dispatchers.IO) {
-                val result = ExploitRunner().run(applicationContext, log)
-                withContext(Dispatchers.Main) {
-                    when (result) {
-                        is ExploitResult.Success -> {
-                            rooted = true
-                            softRebootNowButton.isEnabled = true
-                            statusText.text = "Root obtido via ${result.route}.\n" +
-                                "Atenção: SELinux permissivo até o reboot."
-                            Toast.makeText(
-                                this@MainActivity,
-                                "Root obtido: ${result.route}",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                        is ExploitResult.Failed -> {
-                            statusText.text = "Falhou (código ${result.code}): ${result.reason}\n" +
-                                "Faça reboot total antes de tentar de novo."
-                        }
-                        is ExploitResult.NotAttempted -> {
-                            statusText.text = "Não tentado: ${result.reason}"
-                        }
-                    }
-                }
+        binding.settingsButton.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        binding.managerHeader.setOnClickListener { toggleManagerList() }
+        binding.downloadButton.setOnClickListener { downloadSelectedManager() }
+        binding.openButton.setOnClickListener { openSelectedManager() }
+        binding.vulnerabilityHeader.setOnClickListener { toggleVulnerability() }
+        binding.rootButton.setOnClickListener { runRoot() }
+        binding.softRebootButton.setOnClickListener { confirmSoftReboot() }
+        binding.checkCompatButton.setOnClickListener { refreshDetection(showCompatDialog = true) }
+        binding.logCopyButton.setOnClickListener { copyLog() }
+        binding.logChevron.setOnClickListener { toggleLog() }
+        binding.copyLogText.setOnClickListener { copyLog() }
+        binding.shareLogText.setOnClickListener { shareLog() }
+    }
+
+    /** Roda a detecção (só leitura) e atualiza pílula, manager e estado. */
+    private fun refreshDetection(showCompatDialog: Boolean = false) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val info = Detection.detect(applicationContext)
+            val state = RootManager.currentState(applicationContext, log)
+            val savedManager = settings.selectedManagerPackage.first()
+            withContext(Dispatchers.Main) {
+                deviceInfo = info
+                selectedManager = KnownManagers.byPackage(savedManager ?: "")
+                    ?: info.managersWithKsud.firstNotNullOfOrNull { KnownManagers.byPackage(it) }
+                    ?: KnownManagers.ALL[0]
+                rooted = state == RootState.ROOTED
+                updateStatusPill(info, state)
+                updateManagerHeader()
+                buildManagerList()
+                binding.softRebootButton.visibility = if (rooted) View.VISIBLE else View.GONE
+                binding.selinuxWarningText.visibility = if (rooted) View.VISIBLE else View.GONE
+                if (showCompatDialog) showCompatDialog(info, state)
             }
         }
+    }
 
-        modulesOffSwitch.setOnCheckedChangeListener { _, checked ->
-            lifecycleScope.launch { settings.setModulesOff(checked) }
-            log.append("ui: modules_off=$checked (vale na próxima subida do root)")
+    private fun updateStatusPill(info: Detection.DeviceInfo, state: RootState) {
+        val (text, ok) = when {
+            state == RootState.ROOTED ->
+                getString(R.string.status_rooted, selectedManager.name) to true
+            state == RootState.HOOKED_NO_ROOT ->
+                getString(R.string.status_hooked_no_root) to false
+            info.selectedModule == null ->
+                getString(R.string.status_no_profile) to false
+            info.managersWithKsud.isEmpty() ->
+                getString(R.string.status_no_manager) to false
+            else ->
+                getString(R.string.status_ready, selectedManager.name) to true
         }
+        binding.statusText.text = text
+        binding.statusDot.setBackgroundResource(
+            if (ok) R.drawable.bg_dot_ok else R.drawable.bg_dot_warn
+        )
+    }
 
-        softRebootSwitch.setOnCheckedChangeListener { _, checked ->
-            lifecycleScope.launch { settings.setSoftRebootEnabled(checked) }
+    private fun updateManagerHeader() {
+        binding.managerNameText.text = selectedManager.name
+        binding.managerPackageText.text = selectedManager.packageName
+        binding.openButton.isEnabled = isManagerInstalled(selectedManager.packageName)
+    }
+
+    private fun isManagerInstalled(packageName: String): Boolean {
+        return deviceInfo?.managersWithKsud?.contains(packageName) == true
+    }
+
+    private fun toggleManagerList() {
+        managerListExpanded = !managerListExpanded
+        binding.managerListContainer.visibility =
+            if (managerListExpanded) View.VISIBLE else View.GONE
+        binding.managerChevron.setImageResource(
+            if (managerListExpanded) R.drawable.ic_chevron_up else R.drawable.ic_chevron_down
+        )
+    }
+
+    /** Monta as linhas do dropdown (uma por manager conhecido). */
+    private fun buildManagerList() {
+        val container = binding.managerListContainer
+        container.removeAllViews()
+        for (manager in KnownManagers.ALL) {
+            val row = ItemManagerBinding.inflate(layoutInflater, container, false)
+            row.managerItemName.text = manager.name
+            row.managerItemDescription.text = manager.description
+            row.managerItemPackage.text = manager.packageName
+            val installed = isManagerInstalled(manager.packageName)
+            row.managerItemBadge.setText(
+                if (installed) R.string.manager_installed else R.string.manager_not_installed
+            )
+            row.managerItemBadge.setBackgroundResource(
+                if (installed) R.drawable.bg_badge_installed
+                else R.drawable.bg_badge_not_installed
+            )
+            row.managerItemBadge.setTextColor(
+                getColor(
+                    if (installed) R.color.badge_installed_text
+                    else R.color.badge_not_installed_text
+                )
+            )
+            row.root.setOnClickListener { selectManager(manager) }
+            container.addView(row.root)
         }
+    }
 
-        softRebootNowButton.setOnClickListener {
-            // TODO: ask for confirmation first (new behaviour — the
-            // reference design never asks). Only enabled when rooted.
-            lifecycleScope.launch(Dispatchers.IO) {
-                val ok = RootManager.softRebootNow(applicationContext, log)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        if (ok) "Soft reboot solicitado" else "Soft reboot indisponível (stub)",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
+    private fun selectManager(manager: KnownManager) {
+        selectedManager = manager
+        lifecycleScope.launch { settings.setSelectedManagerPackage(manager.packageName) }
+        log.append("ui: manager selecionado=${manager.packageName}")
+        updateManagerHeader()
+        if (managerListExpanded) toggleManagerList()
+    }
+
+    /** Abre a página oficial de download do manager selecionado. */
+    private fun downloadSelectedManager() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(selectedManager.downloadUrl))
+        try {
+            startActivity(intent)
+        } catch (_: Exception) {
+            Toast.makeText(this, R.string.toast_no_browser, Toast.LENGTH_SHORT).show()
         }
+    }
 
-        expertSwitch.setOnCheckedChangeListener { _, checked ->
-            lifecycleScope.launch { settings.setExpertMode(checked) }
-            autorunSwitch.isEnabled = checked
-            autoSoftRebootSwitch.isEnabled = checked && autorunSwitch.isChecked
-            if (!checked) {
-                autorunSwitch.isChecked = false
-                AutorunManager.setEnabled(applicationContext, false)
-            }
+    /** Lança o manager selecionado, se estiver instalado. */
+    private fun openSelectedManager() {
+        val launch = packageManager.getLaunchIntentForPackage(selectedManager.packageName)
+        if (launch == null) {
+            Toast.makeText(this, R.string.toast_manager_not_installed, Toast.LENGTH_SHORT).show()
+            return
         }
-
-        autorunSwitch.setOnCheckedChangeListener { _, checked ->
-            AutorunManager.setEnabled(applicationContext, checked)
-            lifecycleScope.launch { settings.setAutorunEnabled(checked) }
-            autoSoftRebootSwitch.isEnabled = checked
-            log.append("ui: autorun=$checked")
+        try {
+            startActivity(launch)
+        } catch (_: Exception) {
+            Toast.makeText(this, R.string.toast_manager_not_installed, Toast.LENGTH_SHORT).show()
         }
+    }
 
-        autoSoftRebootSwitch.setOnCheckedChangeListener { _, checked ->
-            lifecycleScope.launch { settings.setAutoSoftReboot(checked) }
-        }
+    private fun toggleVulnerability() {
+        vulnerabilityExpanded = !vulnerabilityExpanded
+        binding.vulnerabilityBody.visibility =
+            if (vulnerabilityExpanded) View.VISIBLE else View.GONE
+        binding.vulnerabilityChevron.setImageResource(
+            if (vulnerabilityExpanded) R.drawable.ic_chevron_up else R.drawable.ic_chevron_down
+        )
+    }
 
-        viewLogButton.setOnClickListener {
-            lifecycleScope.launch(Dispatchers.IO) {
-                val text = log.readAll()
-                withContext(Dispatchers.Main) {
-                    logText.text = text.ifEmpty { "(log vazio)" }
-                }
-            }
-        }
+    private fun toggleLog() {
+        logExpanded = !logExpanded
+        binding.logBody.visibility = if (logExpanded) View.VISIBLE else View.GONE
+        binding.logChevron.setImageResource(
+            if (logExpanded) R.drawable.ic_chevron_up else R.drawable.ic_chevron_down
+        )
+        if (logExpanded) loadLogTail()
+    }
 
-        shareLogButton.setOnClickListener {
-            lifecycleScope.launch(Dispatchers.IO) {
-                val exported = log.exportToDownloads()
-                withContext(Dispatchers.Main) {
-                    if (!exported) {
+    private fun runRoot() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = ExploitRunner().run(applicationContext, log)
+            val launchManager = settings.launchManagerAfterSuccess.first()
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is ExploitResult.Success -> {
+                        rooted = true
+                        binding.softRebootButton.visibility = View.VISIBLE
+                        binding.selinuxWarningText.visibility = View.VISIBLE
+                        deviceInfo?.let { updateStatusPill(it, RootState.ROOTED) }
                         Toast.makeText(
                             this@MainActivity,
-                            "Nada para exportar (log vazio)",
+                            "Root obtido: ${result.route}",
                             Toast.LENGTH_LONG
                         ).show()
-                        return@withContext
+                        if (launchManager) openSelectedManager()
                     }
-                    val share = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, log.readAll())
-                        putExtra(
-                            Intent.EXTRA_SUBJECT,
-                            "LockRoot log ${android.os.Build.MODEL}"
-                        )
+                    is ExploitResult.Failed -> {
+                        binding.statusText.text =
+                            "Falhou (código ${result.code}): ${result.reason}\n" +
+                            "Faça reboot total antes de tentar de novo."
                     }
-                    startActivity(Intent.createChooser(share, "Compartilhar log"))
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Log salvo em Downloads/LockRoot",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    is ExploitResult.NotAttempted -> {
+                        binding.statusText.text = "Não tentado: ${result.reason}"
+                    }
+                }
+                loadLogTail()
+            }
+        }
+    }
+
+    /** Soft reboot manual, com confirmação antes (TODO do esqueleto). */
+    private fun confirmSoftReboot() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.confirm_soft_reboot_title)
+            .setMessage(R.string.confirm_soft_reboot_msg)
+            .setPositiveButton(R.string.confirm_yes) { _, _ ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val ok = RootManager.softRebootNow(applicationContext, log)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            if (ok) "Soft reboot solicitado" else "Soft reboot indisponível (stub)",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+            .setNegativeButton(R.string.confirm_cancel, null)
+            .show()
+    }
+
+    private fun showCompatDialog(info: Detection.DeviceInfo, state: RootState) {
+        val verdict = when {
+            info.selectedModule == null -> "Sem perfil / kernel sem suporte"
+            info.moduleIsGuess -> "Módulo por palpite (KMI aproximado)"
+            else -> "Módulo encontrado: ${info.selectedModule}"
+        }
+        val message = "Modelo: ${info.model}\n" +
+            "Kernel: ${info.kernelRelease}\n" +
+            "KMI: android${info.gkiLevel ?: "?"}\n" +
+            "Detecção: $verdict\n" +
+            "Managers com ksud: ${info.managersWithKsud.ifEmpty { "nenhum" }}\n" +
+            "Estado do boot: $state"
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.compat_dialog_title)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    /** Mostra só o fim do log na tela (o arquivo inteiro é pesado demais). */
+    private fun loadLogTail() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val tail = log.readAll().takeLast(LOG_TAIL_CHARS)
+            withContext(Dispatchers.Main) {
+                binding.logText.text =
+                    tail.ifEmpty { getString(R.string.log_empty) }
+                binding.logText.post {
+                    val layout = binding.logText.layout ?: return@post
+                    binding.logText.scrollTo(0, layout.getLineTop(binding.logText.lineCount))
                 }
             }
         }
     }
 
-    /** Runs the read-only detection pass and updates the status text. */
-    private fun refreshDetection() {
+    private fun copyLog() {
         lifecycleScope.launch(Dispatchers.IO) {
-            val info = Detection.detect(applicationContext)
-            val state = RootManager.currentState(applicationContext, log)
+            val text = log.readAll()
             withContext(Dispatchers.Main) {
-                val verdict = when {
-                    info.selectedModule == null -> "Sem perfil / kernel sem suporte"
-                    info.moduleIsGuess -> "Módulo por palpite (KMI aproximado)"
-                    else -> "Módulo encontrado: ${info.selectedModule}"
+                if (text.isEmpty()) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        R.string.toast_log_empty_share,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@withContext
                 }
-                statusText.text = "LockRoot 0.1.0 — esqueleto\n" +
-                    "Modelo: ${info.model} · kernel: ${info.kernelRelease}\n" +
-                    "KMI: android${info.gkiLevel ?: "?"}\n" +
-                    "Detecção: $verdict\n" +
-                    "Managers com ksud: ${info.managersWithKsud.ifEmpty { "nenhum" }}\n" +
-                    "Estado do boot: $state"
-                rooted = state == RootState.ROOTED
-                softRebootNowButton.isEnabled = rooted
+                val clipboard =
+                    getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("LockRoot log", text))
+                Toast.makeText(this@MainActivity, R.string.toast_log_copied, Toast.LENGTH_SHORT)
+                    .show()
             }
         }
-        lifecycleScope.launch {
-            val expert = settings.expertMode.first()
-            expertSwitch.isChecked = expert
-            autorunSwitch.isEnabled = expert
-            autorunSwitch.isChecked = AutorunManager.isEnabled(applicationContext)
-            autoSoftRebootSwitch.isEnabled = expert && autorunSwitch.isChecked
-            modulesOffSwitch.isChecked = settings.modulesOff.first()
-            softRebootSwitch.isChecked = settings.softRebootEnabled.first()
-            autoSoftRebootSwitch.isChecked = settings.autoSoftReboot.first()
+    }
+
+    private fun shareLog() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val exported = log.exportToDownloads()
+            val text = log.readAll()
+            withContext(Dispatchers.Main) {
+                if (!exported) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        R.string.toast_log_empty_share,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@withContext
+                }
+                val share = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, text)
+                    putExtra(
+                        Intent.EXTRA_SUBJECT,
+                        "LockRoot log ${android.os.Build.MODEL}"
+                    )
+                }
+                startActivity(Intent.createChooser(share, getString(R.string.share_log)))
+                Toast.makeText(
+                    this@MainActivity,
+                    R.string.toast_share_saved,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
+    }
+
+    companion object {
+        /** Máximo de caracteres do log exibidos na tela (o resto fica no arquivo). */
+        const val LOG_TAIL_CHARS = 16 * 1024
     }
 }

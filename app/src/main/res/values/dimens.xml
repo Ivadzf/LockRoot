@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="screen_padding">16dp</dimen>
+    <dimen name="card_corner">24dp</dimen>
+    <dimen name="card_margin_top">12dp</dimen>
+    <dimen name="button_height">56dp</dimen>
+    <dimen name="button_corner">28dp</dimen>
+    <dimen name="button_small_height">48dp</dimen>
+    <dimen name="button_small_corner">24dp</dimen>
+    <dimen name="manager_icon_size">48dp</dimen>
+    <dimen name="row_icon_size">40dp</dimen>
+    <dimen name="status_dot_size">10dp</dimen>
+    <dimen name="log_max_height">320dp</dimen>
+</resources>

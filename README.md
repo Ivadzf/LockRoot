@@ -79,9 +79,9 @@ Local (se tiver computador com Android SDK):
 ./gradlew :app:assembleDebug
 ```
 
-> O build **não foi testado** neste esqueleto (não há CI aqui).
-> As versões de AGP/Kotlin/Gradle podem precisar de ajuste na
-> primeira compilação.
+> O build roda na CI do GitHub (workflow `Android CI`, `assembleDebug`):
+> o primeiro build verde foi o run #4 (2026-11-21, v0.2.0), com o
+> artefato `lockroot-debug-apk`.
 
 ## Avisos de risco
 
@@ -101,8 +101,10 @@ Local (se tiver computador com Android SDK):
 
 ```
 app/src/main/java/com/lockroot/app/
-  MainActivity.kt        UI placeholder (Views)
+  MainActivity.kt        tela principal (layout v0.2.0, no modelo do Temporary Root)
+  SettingsActivity.kt    tela de Configurações (lote layout v0.2.0)
   BootReceiver.kt        Autorun no boot (desligado por padrão)
+  managers/KnownManagers.kt  managers conhecidos + URLs oficiais de download
   detection/Detection.kt     detecção somente-leitura (uname/KMI/SPL/manager)
   logging/LogManager.kt      log em arquivo (implementado de verdade)
   exploit/ExploitRunner.kt   interface Exploit + stubs das 3 rotas + ordem

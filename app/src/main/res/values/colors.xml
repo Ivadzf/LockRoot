@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Selos do dropdown de managers -->
+    <color name="badge_installed_bg">#1E4620</color>
+    <color name="badge_installed_text">#81C784</color>
+    <color name="badge_not_installed_bg">#4A3600</color>
+    <color name="badge_not_installed_text">#FFD54F</color>
+    <!-- Bolinha da pílula de status -->
+    <color name="dot_ok">#4CAF50</color>
+    <color name="dot_warn">#FFB300</color>
+    <!-- Área do log -->
+    <color name="log_bg">#000000</color>
+    <color name="log_text">#E0E0E0</color>
+    <!-- Círculo dos ícones das Configurações -->
+    <color name="row_icon_bg">#2C2C30</color>
+</resources>

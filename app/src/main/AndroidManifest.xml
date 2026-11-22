@@ -38,6 +38,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Tela de Configurações (lote layout v0.2.0): interna, sem export. -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
         <!-- Autorun: declared disabled; the user enables it from the app
              (Expert Mode gate). directBootAware so it can run before the
              user unlocks, reading device-protected storage only. -->

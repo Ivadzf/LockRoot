@@ -23,6 +23,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -72,6 +73,10 @@ class Settings(private val context: Context) {
     val lastRunSuccess: Flow<Boolean> =
         context.dataStore.data.map { it[KEY_LAST_RUN_SUCCESS] ?: false }
     val logBootCount: Flow<Int> = context.dataStore.data.map { it[KEY_LOG_BOOT_COUNT] ?: -1 }
+    val launchManagerAfterSuccess: Flow<Boolean> =
+        context.dataStore.data.map { it[KEY_LAUNCH_MANAGER_AFTER_SUCCESS] ?: false }
+    val selectedManagerPackage: Flow<String?> =
+        context.dataStore.data.map { it[KEY_SELECTED_MANAGER] }
 
     suspend fun setExpertMode(value: Boolean) = edit { it[KEY_EXPERT_MODE] = value }
     suspend fun setModulesOff(value: Boolean) = edit { it[KEY_MODULES_OFF] = value }
@@ -80,6 +85,10 @@ class Settings(private val context: Context) {
     suspend fun setAutorunEnabled(value: Boolean) = edit { it[KEY_AUTORUN] = value }
     suspend fun setLastRunSuccess(value: Boolean) = edit { it[KEY_LAST_RUN_SUCCESS] = value }
     suspend fun setLogBootCount(value: Int) = edit { it[KEY_LOG_BOOT_COUNT] = value }
+    suspend fun setLaunchManagerAfterSuccess(value: Boolean) =
+        edit { it[KEY_LAUNCH_MANAGER_AFTER_SUCCESS] = value }
+    suspend fun setSelectedManagerPackage(value: String) =
+        edit { it[KEY_SELECTED_MANAGER] = value }
 
     private suspend fun edit(block: (MutablePreferences) -> Unit) {
         context.dataStore.edit(block)
@@ -95,5 +104,8 @@ class Settings(private val context: Context) {
         private val KEY_AUTORUN = booleanPreferencesKey("autorun")
         private val KEY_LAST_RUN_SUCCESS = booleanPreferencesKey("last_run_success")
         private val KEY_LOG_BOOT_COUNT = intPreferencesKey("log_boot_count")
+        private val KEY_LAUNCH_MANAGER_AFTER_SUCCESS =
+            booleanPreferencesKey("launch_manager_after_success")
+        private val KEY_SELECTED_MANAGER = stringPreferencesKey("selected_manager_package")
     }
 }

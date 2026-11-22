@@ -10,6 +10,18 @@ Cada item cita a seção do estudo que o cobre:
 Status do esqueleto: só o `LogManager` está implementado de verdade.
 Todo o resto é stub com TODO numerado no código.
 
+## Lote layout + otimização (v0.2.0) — feito 2026-11-21
+- [x] Tela principal no modelo do Temporary Root (prints de referência):
+      pílula de status, card de manager com dropdown + selos, card de
+      vulnerabilidade, botão grande, card de log do console.
+- [x] Tela de Configurações separada (SettingsActivity) com as chaves
+      que estavam na tela principal + "Abrir o manager após o sucesso".
+- [x] Otimização: layouts em XML + view binding, log da tela limitado
+      aos últimos 16 KB, versão via BuildConfig, sem dependência nova.
+- [ ] 1.6 (parcial): a pílula mostra "pronto / sem manager / sem perfil"
+      e o diálogo de compatibilidade mostra o veredito — falta o
+      veredito completo "vulnerável / patcheado" (depende do probe, 1.4).
+
 ## 1. Detecção (base de tudo)
 
 - [ ] 1.1 Confirmar a lista de package names dos managers suportados
